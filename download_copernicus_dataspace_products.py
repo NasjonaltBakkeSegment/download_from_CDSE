@@ -34,7 +34,7 @@ username = config_data['username']
 password = config_data['password']
 base_filepath = config_data['output_dir']
 
-satellites = ['S1', 'S2L1C', 'S2L2A', 'S3']
+valid_sats = ['S1', 'S2L1C', 'S2L2A', 'S3', 'all']
 
 def date_from_string(date_string):
     '''
@@ -137,7 +137,6 @@ class All_products_JSON:
             filename = f'{self.satellite}_{self.productType}_{self.start_date}_to_{self.end_date}.json'
             
         output_filepath = os.path.join(base_filepath, filename)
-        print(self.all_records)
         
         with open(output_filepath, 'w', encoding='utf-8') as f:
             json.dump(self.all_records, f, ensure_ascii=False, indent=4)
@@ -158,7 +157,6 @@ class All_products_JSON:
         return products
         
 def main(args):
-    valid_sats = ['Sentinel-1']
     
     start_date = args.start_date
     end_date = args.end_date
@@ -177,9 +175,9 @@ def main(args):
     
     for satellite in satellites:
         
-        if satellite in ['Satellite1', 'Satellite3']:
+        if satellite in ['Sentinel1', 'Sentinel3']:
             productTypes = ['all'] # Download all products
-        elif satellite == 'Satellite2':
+        elif satellite == 'Sentinel2':
             if args.sat == 'S2L1C':
                 productTypes = ['L1C']
             elif args.sat == 'S2L2A':
@@ -208,7 +206,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--start_date", type=str, required=True, help="First date you want to delete products for (yyyymmdd)")
     parser.add_argument("--end_date", type=str, required=True, help="First date you want to delete products for (yyyymmdd)")
-    parser.add_argument("--sat", type=str, required=True, help="For which satellite do you want to harvest products?", choices=satellites+['all'])
+    parser.add_argument("--sat", type=str, required=True, help="For which satellite do you want to harvest products?", choices=valid_sats)
     
     args = parser.parse_args()
     main(args)
