@@ -12,6 +12,10 @@ import argparse
 from datetime import date
 import os
 from shapely.wkt import loads
+import logging
+import sys
+
+logger = logging.getLogger(__name__)
 
 # AOI
 wkt_string = (
@@ -76,7 +80,7 @@ def download_product(product_id, product_title, access_token):
     '''
     Download product from Copernicus Data Space Ecosystem
     '''
-        
+    logger.info(f"------Downloading product: {product_title}-------") 
     session = requests.Session()
     session.headers.update({'Authorization': f'Bearer {access_token}'})
     url = f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products({product_id})/$value"
@@ -102,20 +106,19 @@ class All_products_JSON:
         self.filepath = f'{satellite}_{start_date}-{end_date}_all_products.csv'
     
     def metadata_all_products_to_json(self):
+        logger.info(f"------Creating JSON file of {self.satellite} {self.productType} products to remove -------") 
         base_url = "http://catalogue.dataspace.copernicus.eu/resto/api/collections/"
         maxRecords = 1000 # Number of products to query in one go
         
         # Initialize an empty list to store the records
         self.all_records = []
-        print('starting to harvest')
         page = 1
         
         while True:
             
-            print(f'starting page {page}')
             # Create the URL with the current offset and limit
             if self.productType == 'all':
-                url = f"{base_url}{self.satellite}/search.json?startDate={self.start_date}T00:00:00Z&completionDate={self.end_date}T02:09:59Z&sortParam=startDate&geometry={polygon}&maxRecords={maxRecords}&page={page}"
+                url = f"{base_url}{self.satellite}/search.json?startDate={self.start_date}T00:00:00Z&completionDate={self.end_date}T02:59:59Z&sortParam=startDate&geometry={polygon}&maxRecords={maxRecords}&page={page}"
             else:
                 url = f"{base_url}{self.satellite}/search.json?productType={self.productType}&startDate={self.start_date}T00:00:00Z&completionDate={self.end_date}T02:09:59Z&sortParam=startDate&geometry={polygon}&maxRecords={maxRecords}&page={page}"
             # Make the request and get the JSON response
@@ -140,24 +143,30 @@ class All_products_JSON:
         
         with open(output_filepath, 'w', encoding='utf-8') as f:
             json.dump(self.all_records, f, ensure_ascii=False, indent=4)
+            logger.info(f"------File created: {output_filepath}-------") 
         
     def get_product_ids_and_titles(self):
         '''
         Get the ID (a UUID) for each product to be downloaded
         Note that the UUID is Copernicus Data Space Ecosystem does not match the UUID in Colhub-Archive.
         '''
+        logger.info("------Creating dictionary of IDs and file names for products that will be downloaded-------") 
         products = {}
         
         for item in self.all_records:
-            #if self.satellite == 'Sentinel2'
             products[item['id']] = item['properties']['title'].split('.')[0]
-        
-        #product_ids = [item["id"] for item in self.all_records]
         
         return products
         
 def main(args):
     
+    # Log to console
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    log_info = logging.StreamHandler(sys.stdout)
+    log_info.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(log_info)
+       
     start_date = args.start_date
     end_date = args.end_date
     
@@ -196,7 +205,7 @@ def main(args):
                     # Do something with the access token here
                 except Exception as e:
                     # Print the error message and exit
-                    print(e)
+                    logger.error(e) 
                     exit(1)  # Exit with a non-zero status code to indicate an error
                 
                 download_product(product_id, product_title, access_token)
