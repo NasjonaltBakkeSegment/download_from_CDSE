@@ -1,4 +1,4 @@
-# Download_Copernicus_Dataspace
+# download_from_CDSE
 
-Code to make a list of products from Copernicus Dataspace and then download them.
+Code to make a JSON of products from Copernicus Data Space Ecosystem and then download them.
 https://dataspace.copernicus.eu/
