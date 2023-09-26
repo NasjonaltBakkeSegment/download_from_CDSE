@@ -1,0 +1,5 @@
+{
+    "username": "", # username for Copernicus Data Space Ecosystem 
+    "password": "", # password for Copernicus Data Space Ecosystem
+    "output_dir": "" # filepath where you want to write the downloaded products to
+}
