@@ -118,7 +118,7 @@ class All_products_JSON:
             
             # Create the URL with the current offset and limit
             if self.productType == 'all':
-                url = f"{base_url}{self.satellite}/search.json?startDate={self.start_date}T00:00:00Z&completionDate={self.end_date}T02:59:59Z&sortParam=startDate&geometry={polygon}&maxRecords={maxRecords}&page={page}"
+                url = f"{base_url}{self.satellite}/search.json?startDate={self.start_date}T00:00:00Z&completionDate={self.end_date}T23:59:59Z&sortParam=startDate&geometry={polygon}&maxRecords={maxRecords}&page={page}"
             else:
                 url = f"{base_url}{self.satellite}/search.json?productType={self.productType}&startDate={self.start_date}T00:00:00Z&completionDate={self.end_date}T02:09:59Z&sortParam=startDate&geometry={polygon}&maxRecords={maxRecords}&page={page}"
             # Make the request and get the JSON response
@@ -211,10 +211,10 @@ def main(args):
                 download_product(product_id, product_title, access_token)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Script to delete all products except Fast-24hr between two given dates")
+    parser = argparse.ArgumentParser(description="Script to downloaded products from CDSE between two given dates")
 
-    parser.add_argument("--start_date", type=str, required=True, help="First date you want to delete products for (yyyymmdd)")
-    parser.add_argument("--end_date", type=str, required=True, help="First date you want to delete products for (yyyymmdd)")
+    parser.add_argument("--start_date", type=str, required=True, help="First date you want to download products for (yyyymmdd)")
+    parser.add_argument("--end_date", type=str, required=True, help="First date you want to download products for (yyyymmdd)")
     parser.add_argument("--sat", type=str, required=True, help="For which satellite do you want to harvest products?", choices=valid_sats)
     
     args = parser.parse_args()
