@@ -3,7 +3,7 @@
 conda activate base
 
 # Define Python script
-python_script="./download_copernicus_dataspace_products.py"
+python_script="./query.py"
 
 # Calculate dynamic dates. Data will be processed for all dates inbetween and inclusive of the start and end date.
 end_date="20210701"
