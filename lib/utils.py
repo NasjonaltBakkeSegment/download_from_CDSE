@@ -54,7 +54,7 @@ def get_dict_satellites_and_product_types(sat):
     
     return satellites_and_product_types      
 
-def filter_based_on_polygon(list, polygon):
+def filter_based_on_polygon(features_list, polygon):
     '''
     Filters a list of geographic features to only include those that intersect with a given polygon.
     Can be used if CDSE is reconverting any polygon to a rectangular bounding box.
@@ -67,11 +67,11 @@ def filter_based_on_polygon(list, polygon):
     Returns:
         list: A list of features that are inside or intersect with the given polygon.
     '''
-    print('Features in CDSE rectangular bounding box: ', len(list))
+    print('Features in CDSE rectangular bounding box: ', len(features_list))
     print('Filtering...')
 
     filtered_features = []
-    for feature in list:
+    for feature in features_list:
         geom = shape(feature['geometry'])
         if geom.intersects(polygon):
             filtered_features.append(feature)
