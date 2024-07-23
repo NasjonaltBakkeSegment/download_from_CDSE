@@ -1,6 +1,7 @@
 import yaml
 from datetime import date
 from shapely.wkt import loads
+from shapely.geometry import Polygon, box, shape
 import logging
 import sys
 
@@ -51,5 +52,30 @@ def get_dict_satellites_and_product_types(sat):
         satellites_and_product_types['Sentinel2'] = ['L1C', 'L2A']
         satellites_and_product_types['Sentinel3'] = ['all']
     
-    return satellites_and_product_types
-          
+    return satellites_and_product_types      
+
+def filter_based_on_polygon(list, polygon):
+    '''
+    Filters a list of geographic features to only include those that intersect with a given polygon.
+    Can be used if CDSE is reconverting any polygon to a rectangular bounding box.
+
+    Args:
+        features_list (list): A list of geographic features, where each feature is a dictionary containing a 'geometry' key
+                              with a geometry that can be converted to a Shapely shape.
+        polygon (Polygon): A Shapely Polygon object representing the polygon to filter the features by.
+
+    Returns:
+        list: A list of features that are inside or intersect with the given polygon.
+    '''
+    print('Features in CDSE rectangular bounding box: ', len(list))
+    print('Filtering...')
+
+    filtered_features = []
+    for feature in list:
+        geom = shape(feature['geometry'])
+        if geom.intersects(polygon):
+            filtered_features.append(feature)
+    
+    print('Features intersecting polygon: ', len(filtered_features))
+    
+    return filtered_features
