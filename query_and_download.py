@@ -27,22 +27,21 @@ def main(args):
         sys.exit(1)
     
     satellites_and_product_types = get_dict_satellites_and_product_types(args.sat)          
+
+    try:
+        access_token = get_access_token()
+        # Do something with the access token here
+    except Exception as e:
+        # Print the error message and exit
+        logger.error(e) 
+        exit(1)  # Exit with a non-zero status code to indicate an error
     
     for satellite, productTypes in satellites_and_product_types.items():
         for productType in productTypes:
             metadata_products = Metadata_products(satellite, productType, start_date, end_date)
             metadata_products.harvest_all_products_to_json()
             products = metadata_products.get_product_ids_and_titles()
-            
             for product_id,product_title in products.items():
-                try:
-                    access_token = get_access_token()
-                    # Do something with the access token here
-                except Exception as e:
-                    # Print the error message and exit
-                    logger.error(e) 
-                    exit(1)  # Exit with a non-zero status code to indicate an error
-                
                 download_product(product_id, product_title, access_token)
 
 if __name__ == "__main__":
