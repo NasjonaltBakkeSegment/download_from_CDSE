@@ -34,15 +34,15 @@ def main():
     metadata_products.load_json()
     products = metadata_products.get_product_ids_and_titles()
     
+    try:
+        access_token = get_access_token()
+        # Do something with the access token here
+    except Exception as e:
+        # Print the error message and exit
+        logger.error(e) 
+        exit(1)  # Exit with a non-zero status code to indicate an error
+            
     for product_id,product_title in products.items():
-        try:
-            access_token = get_access_token()
-            # Do something with the access token here
-        except Exception as e:
-            # Print the error message and exit
-            logger.error(e) 
-            exit(1)  # Exit with a non-zero status code to indicate an error
-        
         download_product(product_id, product_title, access_token)
 
 if __name__ == "__main__":
