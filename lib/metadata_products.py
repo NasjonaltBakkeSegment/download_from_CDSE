@@ -85,4 +85,47 @@ class Metadata_products:
         for item in self.all_records:
             products[item['id']] = item['properties']['title'].split('.')[0]
         
-        return products 
+        return products
+    
+    def create_storage_paths(self):
+        '''
+        Extract metadata from JSON file to create storage path:
+            platform/year/month/day/product_type
+        '''
+        logger.info("------Creating storage path-------")
+        paths = {}
+
+        for item in self.all_records:
+            # platform = item['properties']['platform'] # sometimes only given as "SENTINEL-3"
+            platform = item['properties']['title'].split('_')[0]
+            date = item['properties']['startDate'].split('T')[0].split('-')
+            year = date[0]
+            month = date[1]
+            day = date[2]
+            product_type = item['properties']['productType']
+
+            path = os.path.join(output_dir, platform, year, month, day, product_type)
+
+            paths[item['id']] = path
+        
+        return paths
+    
+    def check_for_product_in_storage(self, products_dict, storage_paths_dict):
+        filtered_products = {}
+        filtered_storage_paths = {}
+        for product_id, storage_path in storage_paths_dict.items():
+            file_path_SEN3 = os.path.join(storage_path, products_dict[product_id] + ".SEN3")
+            file_path_SAFE = os.path.join(storage_path, products_dict[product_id] + ".SAFE")
+            
+            # Check if the file path does not exist
+            if not (os.path.exists(file_path_SEN3) or os.path.exists(file_path_SAFE)):
+                filtered_products[product_id] = products_dict[product_id]
+                filtered_storage_paths[product_id] = storage_path
+            else:
+                print(storage_path)
+                print(products_dict[product_id])
+                logger.info(f"------Skipping {products_dict[product_id]} as it already exists------")
+        
+        return filtered_products, filtered_storage_paths
+
+

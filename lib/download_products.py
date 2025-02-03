@@ -1,6 +1,7 @@
 from lib.utils import load_config, init_logging
 import requests
 import os
+import zipfile
 
 (
     username,
@@ -58,3 +59,28 @@ def download_product(product_id, product_title, access_token):
 
     with open(f"{output_filepath}.zip", 'wb') as p:
         p.write(file.content)
+
+def unzip_and_store(product_title, storage_path):
+    '''
+    Unzip downloaded product and store to a pecified directory.
+    The zip file is subsequently deleted.
+    '''
+    zip_filepath = os.path.join(output_dir, f"{product_title}.zip")
+
+    logger.info(f"------Extracting all files from: {product_title}.zip-------")
+
+    if not os.path.exists(zip_filepath):
+        logger.warning(f"------Zip file {zip_filepath} not found, skipping extraction------")
+        return
+
+    try:
+        with zipfile.ZipFile(zip_filepath, "r") as zip_file:
+            zip_file.extractall(storage_path)
+        os.remove(zip_filepath)
+        logger.info(f"------Extracted and deleted zip file: {zip_filepath}------")
+    
+    except zipfile.BadZipFile:
+        logger.error(f"Failed to extract {zip_filepath}: Not a valid zip file.")
+
+    except Exception as e:
+        logger.error(f"Unexpected error while extracting {zip_filepath}: {e}")
