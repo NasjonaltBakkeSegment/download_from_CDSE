@@ -35,6 +35,7 @@ def get_access_token():
     # Check if the request was successful (status code 200)
     if response.status_code == 200:
         # Print the response content (which should contain the access token)
+        # print(response.json()[expires_in])
         return response.json()['access_token']
     else:
         # Raise an exception with the error message if the request fails

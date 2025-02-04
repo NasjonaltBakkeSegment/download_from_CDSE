@@ -54,17 +54,17 @@ def main(args):
         for productType in productTypes:
             metadata_products = Metadata_products(satellite, productType, start_date, end_date)
             metadata_products.harvest_all_products_to_json()
-            products = metadata_products.get_product_ids_and_titles()
-            storage_paths = metadata_products.create_storage_paths()
+            metadata_products.get_product_ids_and_titles()
+            metadata_products.create_storage_paths()
             # Filter out products that are already stored
-            filtered_products, filtered_storage_paths = metadata_products.check_for_product_in_storage(products, storage_paths)
+            filtered_products, filtered_storage_paths = metadata_products.filter_out_synced_products()
             for (product_id, product_title), (product_id, storage_path) in zip(filtered_products.items(), filtered_storage_paths.items()):
                 download_product(product_id, product_title, access_token)
                 unzip_and_store(product_title, storage_path)
 
     # Remove JSON once all products are downloaded and stored
     logger.info(f"------Removing: {metadata_products.filepath}------")
-    # os.remove(metadata_products.filepath)
+    os.remove(metadata_products.filepath)
 
     return 0
 
