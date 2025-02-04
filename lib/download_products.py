@@ -2,6 +2,7 @@ from lib.utils import load_config, init_logging
 import requests
 import os
 import zipfile
+import time
 
 (
     username,
@@ -14,15 +15,34 @@ import zipfile
 
 logger = init_logging()
 
+# Init access token
+access_token = None
+token_expiry = 0
+refresh_token = None
+
 def get_access_token():
+    global access_token, token_expiry, refresh_token
+
+    # If token exists and is still valid, return it
+    if access_token and time.time() < token_expiry - 60:  # Refresh 1 minute before expiry
+        return access_token
+
     # Define the URL and payload data
     url = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'
-    payload = {
-        'grant_type': 'password',
-        'username': username,
-        'password': password,
-        'client_id': 'cdse-public'
-    }
+    
+    if refresh_token:
+        payload = {
+            "client_id": "cdse-public",
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token
+        }
+    else: 
+        payload = {
+            'grant_type': 'password',
+            'username': username,
+            'password': password,
+            'client_id': 'cdse-public'
+        }
     
     # Define the headers
     headers = {
@@ -34,9 +54,10 @@ def get_access_token():
     
     # Check if the request was successful (status code 200)
     if response.status_code == 200:
-        # Print the response content (which should contain the access token)
-        # print(response.json()[expires_in])
-        return response.json()['access_token']
+        access_token = response.json()['access_token']
+        token_expiry = time.time() + response.json()['expires_in']
+        refresh_token = response.json()['refresh_token']
+        return access_token
     else:
         # Raise an exception with the error message if the request fails
         raise Exception(f"Error: {response.status_code} - {response.text}")
@@ -81,7 +102,8 @@ def unzip_and_store(product_title, storage_path):
         logger.info(f"------Extracted and deleted zip file: {zip_filepath}------")
     
     except zipfile.BadZipFile:
-        logger.error(f"Failed to extract {zip_filepath}: Not a valid zip file.")
+        os.remove(zip_filepath)
+        logger.error(f"Failed to extract: {zip_filepath}. Non-valid zip file has been removed.")
 
     except Exception as e:
         logger.error(f"Unexpected error while extracting {zip_filepath}: {e}")

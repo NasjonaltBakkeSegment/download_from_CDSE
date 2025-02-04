@@ -124,7 +124,7 @@ class Metadata_products:
                 filtered_products[product_id] = self.product_ids_and_titles[product_id]
                 filtered_storage_paths[product_id] = storage_path
             else:
-                logger.info(f"------Skipping {self.product_ids_and_titles[product_id]} as it already exists------")
+                logger.info(f"------Skipping {self.product_ids_and_titles[product_id]}, already synced to storage------")
         
         return filtered_products, filtered_storage_paths
 

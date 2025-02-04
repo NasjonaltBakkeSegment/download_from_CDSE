@@ -42,13 +42,15 @@ def main(args):
     
     satellites_and_product_types = get_dict_satellites_and_product_types(args.sat)          
 
-    try:
-        access_token = get_access_token()
-        # Do something with the access token here
-    except Exception as e:
-        # Print the error message and exit
-        logger.error(e) 
-        exit(1)  # Exit with a non-zero status code to indicate an error
+    # try:
+    #     access_token = get_access_token()
+    #     # Do something with the access token here
+    # except Exception as e:
+    #     # Print the error message and exit
+    #     logger.error(e) 
+    #     exit(1)  # Exit with a non-zero status code to indicate an error
+
+
     
     for satellite, productTypes in satellites_and_product_types.items():
         for productType in productTypes:
@@ -59,6 +61,8 @@ def main(args):
             # Filter out products that are already stored
             filtered_products, filtered_storage_paths = metadata_products.filter_out_synced_products()
             for (product_id, product_title), (product_id, storage_path) in zip(filtered_products.items(), filtered_storage_paths.items()):
+                # get or refresh access token if neccessary 
+                access_token = get_access_token()
                 download_product(product_id, product_title, access_token)
                 unzip_and_store(product_title, storage_path)
 
