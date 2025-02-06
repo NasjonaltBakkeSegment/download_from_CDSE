@@ -24,8 +24,9 @@ def get_access_token():
     global access_token, token_expiry, refresh_token
 
     # If token exists and is still valid, return it
-    if access_token and time.time() < token_expiry - 60:  # Refresh 1 minute before expiry
-        return access_token
+    # REMOVED since it seems to be better to refresh before each download.
+    # if access_token and time.time() < token_expiry - 60:  # Refresh 1 minute before expiry
+    #     return access_token
 
     # Define the URL and payload data
     url = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'
@@ -102,7 +103,7 @@ def unzip_and_store(product_title, storage_path):
         logger.info(f"------Extracted and deleted zip file: {zip_filepath}------")
     
     except zipfile.BadZipFile:
-        os.remove(zip_filepath)
+        # os.remove(zip_filepath)
         logger.error(f"Failed to extract: {zip_filepath}. Non-valid zip file has been removed.")
 
     except Exception as e:

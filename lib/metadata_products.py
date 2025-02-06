@@ -93,7 +93,7 @@ class Metadata_products:
         Extract metadata from JSON file to create storage path:
             platform/year/month/day/product_type
         '''
-        logger.info("------Creating storage path-------")
+        logger.info("------Creating storage paths-------")
         paths = {}
 
         for item in self.all_records:

@@ -15,8 +15,8 @@ def date_from_string(date_string):
     
     return date(year,month,day)
 
-def load_config():
-    with open('config.yaml', 'r') as yaml_file:
+def load_config(config_file = 'config.yaml'):
+    with open(config_file, 'r') as yaml_file:
         config_data = yaml.safe_load(yaml_file)
     
     username = config_data.get('username', '')
