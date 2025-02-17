@@ -1,6 +1,6 @@
 #!/bin/bash -f                      
 #$ -N test_sat_sync                     # Set the job name
-#$ -l h_rt=12:00:00                 # Set a hard runtime limit (hh:mm:ss)
+#$ -l h_rt=05:00:00                 # Set a hard runtime limit (hh:mm:ss)
 #$ -S /bin/bash                     
 #$ -pe shmem-1 1                    
 #$ -l h_rss=32G,mem_free=32G,h_data=32G # Request memory 
@@ -18,7 +18,7 @@ conda activate production-08-2024
 # Define Python script
 python_script="/lustre/storeB/users/alessioc/download_from_CDSE/sync_and_store.py"
 
-end_date="20250131"
+end_date="20250113"
 start_date="20250106"
 sat="all"
 
