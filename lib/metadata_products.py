@@ -11,7 +11,7 @@ import sys
     polygon_wkt,
     valid_satellites,
     polygon
-) = load_config()
+) = load_config(config_file='/lustre/storeB/users/alessioc/download_from_CDSE/config.yaml')
 
 logger = init_logging()
 
@@ -93,7 +93,7 @@ class Metadata_products:
         Extract metadata from JSON file to create storage path:
             platform/year/month/day/product_type
         '''
-        logger.info("------Creating storage paths-------")
+        logger.info("------Creating product storage paths-------")
         paths = {}
 
         for item in self.all_records:
@@ -112,6 +112,30 @@ class Metadata_products:
         self.storage_paths = paths
         return paths
     
+    def create_metadata_storage_paths(self):
+        '''
+        Extract metadata from JSON file to create storage path:
+            /metadata/platform/year/month/day/product_type
+        '''
+        logger.info("------Creating metadata storage paths-------")
+        paths = {}
+
+        for item in self.all_records:
+            # platform = item['properties']['platform'] # sometimes only given as "SENTINEL-3"
+            platform = item['properties']['title'].split('_')[0]
+            date = item['properties']['startDate'].split('T')[0].split('-')
+            year = date[0]
+            month = date[1]
+            day = date[2]
+            product_type = item['properties']['productType']
+
+            path = os.path.join(output_dir, 'metadata', platform, year, month, day, product_type)
+
+            paths[item['id']] = path
+
+        self.metadata_storage_paths = paths
+        return paths
+    
     def filter_out_synced_products(self):
         filtered_products = {}
         filtered_storage_paths = {}
@@ -125,7 +149,38 @@ class Metadata_products:
                 filtered_storage_paths[product_id] = storage_path
             else:
                 logger.info(f"------Skipping {self.product_ids_and_titles[product_id]}, already synced to storage------")
-        
+
+        self.filtered_metadata_products = filtered_products
         return filtered_products, filtered_storage_paths
+
+    def store_individual_product_metadata(self):
+        '''
+        Extract individual metadata for each product and store to its own file.
+        Stored in metadata directory.
+        '''
+        logger.info("------Storing metadata-------")
+
+        for product in self.all_records:
+            product_id = product.get("id")
+            if not product_id:
+                logger.info("------Skipping product with no ID------")
+                continue
+            if hasattr(self, "filtered_metadata_products"): # This should be made more efficient. To much branching...
+                if product_id not in self.filtered_metadata_products:
+                    logger.info(f"------Skipping already synced product metadata------")
+                    continue
+
+            product_json = product.get('properties', {}).get('title').split(".")[0] + ".json"
+            metadata_dirpath = self.metadata_storage_paths[product_id]
+            metadata_filepath = os.path.join(metadata_dirpath, product_json)
+
+            os.makedirs(metadata_dirpath, exist_ok=True)
+
+            with open(metadata_filepath, 'w', encoding='utf-8') as f:
+                json.dump(product, f, ensure_ascii=False, indent=4)
+                logger.info(f"------File created: {metadata_filepath}-------") 
+
+
+        
 
 

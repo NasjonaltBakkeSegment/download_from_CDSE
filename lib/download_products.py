@@ -11,7 +11,7 @@ import time
     polygon_wkt,
     valid_satellites,
     polygon
-) = load_config()
+) = load_config(config_file='/lustre/storeB/users/alessioc/download_from_CDSE/config.yaml')
 
 logger = init_logging()
 

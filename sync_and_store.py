@@ -8,9 +8,12 @@ If not, these are download and stored according to the following structutre:
 TO DO:
 [x] func to unzip and store in correct file structure
 [x] func to remove zip
-[] func to check difference between storage and queried products
+[x] func to check difference between storage and queried products
 [x] add line to remove JSON wheen not needed anymore
-
+[] integrity check
+[] save the metadata for each product, preferably one file per product, in whatever format is easiest?
+    JSON I guess but it doesn't really matter.
+    It should have the same filename as the product but different extension, and be stored in the metadatasubdirectory.
 """
 import argparse
 from lib.metadata_products import Metadata_products
@@ -58,17 +61,25 @@ def main(args):
             metadata_products.harvest_all_products_to_json()
             metadata_products.get_product_ids_and_titles()
             metadata_products.create_storage_paths()
+
+            metadata_products.load_json()
+            metadata_products.create_metadata_storage_paths()
             # Filter out products that are already stored
             filtered_products, filtered_storage_paths = metadata_products.filter_out_synced_products()
-            for (product_id, product_title), (product_id, storage_path) in zip(filtered_products.items(), filtered_storage_paths.items()):
-                # get or refresh access token if neccessary 
+            # Extract metadata into individual files
+            metadata_products.store_individual_product_metadata()
+
+            for product_id in filtered_products:
+                product_title = filtered_products[product_id]
+                storage_path = filtered_storage_paths[product_id]
+                # get or refresh access token if necessary 
                 access_token = get_access_token()
                 download_product(product_id, product_title, access_token)
                 unzip_and_store(product_title, storage_path)
 
-    # Remove JSON once all products are downloaded and stored
-    logger.info(f"------Removing: {metadata_products.filepath}------")
-    os.remove(metadata_products.filepath)
+            # Remove JSON once all products are downloaded and stored
+            logger.info(f"------Removing: {metadata_products.filepath}------")
+            os.remove(metadata_products.filepath)
 
     return 0
 
