@@ -66,7 +66,7 @@ def main(args):
             metadata_products.create_metadata_storage_paths()
             # Filter out products that are already stored
             filtered_products, filtered_storage_paths = metadata_products.filter_out_synced_products()
-            # Extract metadata into individual files
+            # Extract metadata into individual files (now only for filtered_products)
             metadata_products.store_individual_product_metadata()
 
             for product_id in filtered_products:

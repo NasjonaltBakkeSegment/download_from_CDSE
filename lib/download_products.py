@@ -1,8 +1,10 @@
 from lib.utils import load_config, init_logging
+from lib.integrity_check import check_extracted_integrity
 import requests
 import os
 import zipfile
 import time
+import sys
 
 (
     username,
@@ -99,12 +101,14 @@ def unzip_and_store(product_title, storage_path):
     try:
         with zipfile.ZipFile(zip_filepath, "r") as zip_file:
             zip_file.extractall(storage_path)
+        # Integrity check of the extracted files
+        check_extracted_integrity(zip_filepath, storage_path)
         os.remove(zip_filepath)
         logger.info(f"------Extracted and deleted zip file: {zip_filepath}------")
     
     except zipfile.BadZipFile:
-        # os.remove(zip_filepath)
-        logger.error(f"Failed to extract: {zip_filepath}. Non-valid zip file has been removed.")
+        os.remove(zip_filepath)
+        logger.error(f"------Failed to extract: {zip_filepath}. Corrupt (Non-valid) zip file has been removed------") # Most likely due to download taking more than 10 mins (token expires)
 
     except Exception as e:
-        logger.error(f"Unexpected error while extracting {zip_filepath}: {e}")
+        logger.error(f"------Unexpected error while extracting {zip_filepath}: {e}------")
