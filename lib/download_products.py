@@ -4,7 +4,6 @@ import requests
 import os
 import zipfile
 import time
-import sys
 
 (
     username,
@@ -87,7 +86,7 @@ def download_product(product_id, product_title, access_token):
 
 def unzip_and_store(product_title, storage_path):
     '''
-    Unzip downloaded product and store to a pecified directory.
+    Unzip downloaded product and store to a specified directory.
     The zip file is subsequently deleted.
     '''
     zip_filepath = os.path.join(output_dir, f"{product_title}.zip")

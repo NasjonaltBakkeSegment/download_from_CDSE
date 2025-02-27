@@ -11,7 +11,7 @@ TO DO:
 [x] func to check difference between storage and queried products
 [x] add line to remove JSON wheen not needed anymore
 [] integrity check
-[] save the metadata for each product, preferably one file per product, in whatever format is easiest?
+[x] save the metadata for each product, preferably one file per product, in whatever format is easiest?
     JSON I guess but it doesn't really matter.
     It should have the same filename as the product but different extension, and be stored in the metadatasubdirectory.
 """
