@@ -110,4 +110,5 @@ def unzip_and_store(product_title, storage_path):
         logger.error(f"------Failed to extract: {zip_filepath}. Corrupt (Non-valid) zip file has been removed------") # Most likely due to download taking more than 10 mins (token expires)
 
     except Exception as e:
+        os.remove(zip_filepath)
         logger.error(f"------Unexpected error while extracting {zip_filepath}: {e}------")

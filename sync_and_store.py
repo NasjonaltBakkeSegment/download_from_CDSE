@@ -62,18 +62,24 @@ def main(args):
             metadata_products.get_product_ids_and_titles()
             metadata_products.create_storage_paths()
 
-            metadata_products.load_json()
+            # Prepare for metadata storage
             metadata_products.create_metadata_storage_paths()
+            metadata_products.create_products_metadata_dict()
+
             # Filter out products that are already stored
             filtered_products, filtered_storage_paths = metadata_products.filter_out_synced_products()
-            # Extract metadata into individual files (now only for filtered_products)
-            metadata_products.store_individual_product_metadata()
+            
+            # # Extract allmetadata into individual files (now only for filtered_products)
+            # metadata_products.store_individual_product_metadata() # replaced in loop by: metadata_products.store_individual_product_metadata(product_id)
+
 
             for product_id in filtered_products:
                 product_title = filtered_products[product_id]
                 storage_path = filtered_storage_paths[product_id]
                 # get or refresh access token if necessary 
                 access_token = get_access_token()
+                
+                metadata_products.store_individual_product_metadata(product_id)
                 download_product(product_id, product_title, access_token)
                 unzip_and_store(product_title, storage_path)
 

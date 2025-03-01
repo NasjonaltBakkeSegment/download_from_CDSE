@@ -152,33 +152,52 @@ class Metadata_products:
 
         self.filtered_metadata_products = filtered_products
         return filtered_products, filtered_storage_paths
+    
+    def create_products_metadata_dict(self):
+        logger.info("------Creating dictionary of individual product metadata to be stored-------")
 
-    def store_individual_product_metadata(self):
-        '''
-        Extract individual metadata for each product and store to its own file.
-        Stored in metadata directory.
-        '''
-        logger.info("------Storing metadata-------")
+        product_metadata_dict = {product["id"]: product for product in self.all_records}
+        self.product_metadata_dict = product_metadata_dict
 
-        for product in self.all_records:
-            product_id = product.get("id")
-            if not product_id:
-                logger.info("------Skipping product with no ID------")
-                continue
-            if hasattr(self, "filtered_metadata_products"): # This should be made more efficient. To much branching...
-                if product_id not in self.filtered_metadata_products:
-                    logger.info(f"------Skipping already synced product metadata------")
-                    continue
+    def store_individual_product_metadata(self, product_id):
+        product = self.product_metadata_dict[product_id]
+        product_json = product.get('properties', {}).get('title').split(".")[0] + ".json"
 
-            product_json = product.get('properties', {}).get('title').split(".")[0] + ".json"
-            metadata_dirpath = self.metadata_storage_paths[product_id]
-            metadata_filepath = os.path.join(metadata_dirpath, product_json)
+        metadata_dirpath = self.metadata_storage_paths[product_id]
+        metadata_filepath = os.path.join(metadata_dirpath, product_json)
 
-            os.makedirs(metadata_dirpath, exist_ok=True)
+        os.makedirs(metadata_dirpath, exist_ok=True)
 
-            with open(metadata_filepath, 'w', encoding='utf-8') as f:
-                json.dump(product, f, ensure_ascii=False, indent=4)
-                logger.info(f"------File created: {metadata_filepath}-------") 
+        with open(metadata_filepath, 'w', encoding='utf-8') as f:
+            json.dump(product, f, ensure_ascii=False, indent=4)
+            logger.info(f"------Created metadata file: {metadata_filepath}-------") 
+
+    # def store_all_individual_product_metadata(self):
+    #     '''
+    #     Extract all individual metadata for each product and store to its own file.
+    #     Stored in metadata directory.
+    #     '''
+    #     logger.info("------Storing metadata-------")
+
+    #     for product in self.all_records:
+    #         product_id = product.get("id")
+    #         if not product_id:
+    #             logger.info("------Skipping product with no ID------")
+    #             continue
+    #         if hasattr(self, "filtered_metadata_products"): # This should be made more efficient. To much branching...
+    #             if product_id not in self.filtered_metadata_products:
+    #                 logger.info(f"------Skipping {product.get('properties', {}).get('title').split('.')[0]}, already synced product metadata------")
+    #                 continue
+
+    #         product_json = product.get('properties', {}).get('title').split(".")[0] + ".json"
+    #         metadata_dirpath = self.metadata_storage_paths[product_id]
+    #         metadata_filepath = os.path.join(metadata_dirpath, product_json)
+
+    #         os.makedirs(metadata_dirpath, exist_ok=True)
+
+    #         with open(metadata_filepath, 'w', encoding='utf-8') as f:
+    #             json.dump(product, f, ensure_ascii=False, indent=4)
+    #             logger.info(f"------File created: {metadata_filepath}-------") 
 
 
         
