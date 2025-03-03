@@ -47,10 +47,16 @@ def get_dict_satellites_and_product_types(sat):
         satellites_and_product_types['Sentinel2'] = ['L2A']
     elif sat == 'S3':
         satellites_and_product_types['Sentinel3'] = ['all']
+    elif sat == "S5P":
+        satellites_and_product_types['Sentinel5P'] = ['all']
+    elif sat == "S6":
+        satellites_and_product_types['Sentinel6'] = ['all']
     elif sat == 'all':
         satellites_and_product_types['Sentinel1'] = ['all']
         satellites_and_product_types['Sentinel2'] = ['L1C', 'L2A']
         satellites_and_product_types['Sentinel3'] = ['all']
+        satellites_and_product_types['Sentinel5P'] = ['all']
+        satellites_and_product_types['Sentinel6'] = ['all']
     
     return satellites_and_product_types      
 

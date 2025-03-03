@@ -104,6 +104,7 @@ def unzip_and_store(product_title, storage_path):
         check_extracted_integrity(zip_filepath, storage_path)
         os.remove(zip_filepath)
         logger.info(f"------Extracted and deleted zip file: {zip_filepath}------")
+        return True
     
     except zipfile.BadZipFile:
         os.remove(zip_filepath)

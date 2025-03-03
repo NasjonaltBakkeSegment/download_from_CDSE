@@ -68,10 +68,6 @@ def main(args):
 
             # Filter out products that are already stored
             filtered_products, filtered_storage_paths = metadata_products.filter_out_synced_products()
-            
-            # # Extract allmetadata into individual files (now only for filtered_products)
-            # metadata_products.store_individual_product_metadata() # replaced in loop by: metadata_products.store_individual_product_metadata(product_id)
-
 
             for product_id in filtered_products:
                 product_title = filtered_products[product_id]
@@ -79,9 +75,11 @@ def main(args):
                 # get or refresh access token if necessary 
                 access_token = get_access_token()
                 
-                metadata_products.store_individual_product_metadata(product_id)
-                download_product(product_id, product_title, access_token)
-                unzip_and_store(product_title, storage_path)
+                download_product(product_id, product_title, access_token) 
+                success = unzip_and_store(product_title, storage_path)
+                if success:
+                    metadata_products.store_individual_product_metadata(product_id)
+
 
             # Remove JSON once all products are downloaded and stored
             logger.info(f"------Removing: {metadata_products.filepath}------")
