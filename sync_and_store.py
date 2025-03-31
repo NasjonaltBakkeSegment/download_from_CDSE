@@ -29,7 +29,7 @@ import os
     polygon_wkt,
     valid_satellites,
     polygon
-) = load_config(config_file='/lustre/storeB/users/alessioc/download_from_CDSE/config.yaml')
+) = load_config(config_file='./config.yaml')
 
 # Log to console
 logger = init_logging()
