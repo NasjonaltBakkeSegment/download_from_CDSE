@@ -1,2 +1,5 @@
-example_config.yaml
-config.yaml
+config/*
+*__pycache__*
+data/*
+local_only/*
+tmp_storage_area/*

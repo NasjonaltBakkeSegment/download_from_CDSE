@@ -2,7 +2,7 @@
 """
 Script that expands on the query and download functionality.
 Checks if queried products are in directory.
-If not, these are download and stored according to the following structutre:
+If not, these are download and stored according to the following structure:
     platform/year/month/day/product_type
 
 TO DO:
@@ -17,7 +17,7 @@ TO DO:
 """
 import argparse
 from lib.metadata_products import Metadata_products
-from lib.utils import load_config, init_logging, get_dict_satellites_and_product_types
+from lib.utils import load_values_from_config, init_logging, get_dict_satellites_and_product_types
 from lib.download_products import download_product, get_access_token, unzip_and_store
 import sys
 import os
@@ -28,33 +28,34 @@ import os
     output_dir,
     polygon_wkt,
     valid_satellites,
-    polygon
-) = load_config(config_file='./config.yaml')
+    polygon,
+    product_types_csv
+) = load_values_from_config(config_file='./config.yaml')
 
 # Log to console
 logger = init_logging()
 
 def main(args):
-           
+
     start_date = args.start_date
     end_date = args.end_date
-    
+
     if args.sat not in valid_satellites:
         logger.info(f"------Invalid 'sat' value. Valid values are: {', '.join(valid_satellites)}------")
         sys.exit(1)
-    
-    satellites_and_product_types = get_dict_satellites_and_product_types(args.sat)          
+
+    satellites_and_product_types = get_dict_satellites_and_product_types(args.sat)
 
     # try:
     #     access_token = get_access_token()
     #     # Do something with the access token here
     # except Exception as e:
     #     # Print the error message and exit
-    #     logger.error(e) 
+    #     logger.error(e)
     #     exit(1)  # Exit with a non-zero status code to indicate an error
 
 
-    
+
     for satellite, productTypes in satellites_and_product_types.items():
         for productType in productTypes:
             metadata_products = Metadata_products(satellite, productType, start_date, end_date)
@@ -72,10 +73,10 @@ def main(args):
             for product_id in filtered_products:
                 product_title = filtered_products[product_id]
                 storage_path = filtered_storage_paths[product_id]
-                # get or refresh access token if necessary 
+                # get or refresh access token if necessary
                 access_token = get_access_token()
-                
-                download_product(product_id, product_title, access_token) 
+
+                download_product(product_id, product_title, access_token)
                 success = unzip_and_store(product_title, storage_path)
                 if success:
                     metadata_products.store_individual_product_metadata(product_id)
@@ -83,7 +84,7 @@ def main(args):
 
             # Remove JSON once all products are downloaded and stored
             logger.info(f"------Removing: {metadata_products.filepath}------")
-            os.remove(metadata_products.filepath)
+            #os.remove(metadata_products.filepath)
 
     return 0
 
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_date", type=str, required=True, help="First date you want to download products for (yyyymmdd)")
     parser.add_argument("--end_date", type=str, required=True, help="First date you want to download products for (yyyymmdd)")
     parser.add_argument("--sat", type=str, required=True, help="For which satellite do you want to harvest products?", choices=valid_satellites)
-    
+
     args = parser.parse_args()
     main(args)
 

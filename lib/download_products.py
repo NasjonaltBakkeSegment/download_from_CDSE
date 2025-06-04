@@ -1,4 +1,4 @@
-from lib.utils import load_config, init_logging
+from lib.utils import load_values_from_config, init_logging
 from lib.integrity_check import check_extracted_integrity
 import requests
 import os
@@ -11,8 +11,9 @@ import time
     output_dir,
     polygon_wkt,
     valid_satellites,
-    polygon
-) = load_config(config_file='/lustre/storeB/users/alessioc/download_from_CDSE/config.yaml')
+    polygon,
+    product_types_csv
+) = load_values_from_config(config_file='./config.yaml')
 
 logger = init_logging()
 
@@ -31,29 +32,29 @@ def get_access_token():
 
     # Define the URL and payload data
     url = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'
-    
+
     if refresh_token:
         payload = {
             "client_id": "cdse-public",
             "grant_type": "refresh_token",
             "refresh_token": refresh_token
         }
-    else: 
+    else:
         payload = {
             'grant_type': 'password',
             'username': username,
             'password': password,
             'client_id': 'cdse-public'
         }
-    
+
     # Define the headers
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-    
+
     # Make the POST request
     response = requests.post(url, data=payload, headers=headers)
-    
+
     # Check if the request was successful (status code 200)
     if response.status_code == 200:
         access_token = response.json()['access_token']
@@ -68,7 +69,7 @@ def download_product(product_id, product_title, access_token):
     '''
     Download product from Copernicus Data Space Ecosystem
     '''
-    logger.info(f"------Downloading product: {product_title}-------") 
+    logger.info(f"------Downloading product: {product_title}-------")
     session = requests.Session()
     session.headers.update({'Authorization': f'Bearer {access_token}'})
     url = f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products({product_id})/$value"
@@ -105,7 +106,7 @@ def unzip_and_store(product_title, storage_path):
         os.remove(zip_filepath)
         logger.info(f"------Extracted and deleted zip file: {zip_filepath}------")
         return True
-    
+
     except zipfile.BadZipFile:
         os.remove(zip_filepath)
         logger.error(f"------Failed to extract: {zip_filepath}. Corrupt (Non-valid) zip file has been removed------") # Most likely due to download taking more than 10 mins (token expires)

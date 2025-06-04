@@ -1,8 +1,8 @@
 #!/bin/bash
 
-conda activate production-08-2024
+#conda activate production-08-2024
 
-sat="all"
+sat="S3"
 
 while true; do
     start_date=$(date -d "1 days ago" +"%Y%m%d")

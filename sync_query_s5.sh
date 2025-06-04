@@ -1,0 +1,1 @@
+python3 sync_query.py -c ./config/s5_config.yaml
