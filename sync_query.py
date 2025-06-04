@@ -33,16 +33,119 @@ def extract_short_name_by_mission(product_name):
 
     return match.group(1) if match else product_name
 
+def query_time_window(url, config, logger):
+    logger.info(f"Querying: {url}")
+    all_results = []
+
+    response = None
+
+    while url:
+        for attempt in range(1, config['max_query_attempts'] + 1):
+            try:
+                r = requests.get(url)
+                if r.ok:
+                    response = r.json()
+                    all_results.extend(response.get('value', []))
+                    url = response.get('@odata.nextLink')
+                    break
+                else:
+                    logger.error(f"Attempt {attempt} failed: HTTP {r.status_code}")
+            except Exception as e:
+                logger.error(f"Query attempt {attempt} raised an error: {e}")
+
+            if attempt < config['max_query_attempts']:
+                logger.error(f"Waiting {config['wait_time_between_failed_queries']} seconds before retrying...")
+                time.sleep(config['wait_time_between_failed_queries'])
+            else:
+                logger.error("All attempts failed, moving on to next time window.")
+
+    if not all_results:
+        logger.info("No products found for the given filters.")
+    else:
+        df = pd.DataFrame.from_dict(all_results)
+
+        # Remove suffix(es) from filename
+        df['Product_Name'] = df['Name'].str.replace(r'(\.\w+){1,2}$', '', regex=True)
+
+        # This needs to only include sensing date(s) not ingestion date since products are updated later and we don't want to redownload.
+        df['Short_Name'] = df['Product_Name'].apply(extract_short_name_by_mission)
+
+        # Create a new column with full paths without extensions
+        df['SearchPath'] = df['Short_Name'].apply(lambda name: os.path.join(predict_base_path(name, config['output_dir'], config['product_types_csv']), name))
+
+        # Keep only rows where the file does *not* exist
+        pd.set_option('display.max_colwidth', None)
+
+        df['matches'] = df['SearchPath'].apply(glob.glob)
+
+        logger.info(f'Number of products found: {len(df)}')
+
+        df = df[df['SearchPath'].apply(no_matches)].reset_index(drop=True)
+
+        logger.info(f'Number of products not already on disk: {len(df)}')
+
+        with sqlite3.connect(config['product_download_queue_db']) as conn:
+            cur = conn.cursor()
+
+            # Create table with 'attempts' column if it doesn't exist
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS products (
+                    name TEXT PRIMARY KEY,
+                    id TEXT,
+                    attempts INTEGER DEFAULT 0
+                )
+            """)
+
+            for _, row in df.iterrows():
+                try:
+                    cur.execute(
+                        "INSERT INTO products (name, id, attempts) VALUES (?, ?, ?)",
+                        (row['Product_Name'], row['Id'], 0)
+                    )
+                except sqlite3.IntegrityError:
+                    # Already exists, skip
+                    pass
+
+        # Deleting df and collecting garbage to avoid memory creep.
+        del df
+        gc.collect()
+
+def create_query_url(config, logger, end_timestamp):
+    if config['polygon']:
+        spatial_filter = f" and OData.CSC.Intersects(area=geography'SRID=4326;{config['polygon']}')"
+    else:
+        spatial_filter = ''
+
+    if config['date_to_filter_by'] == 'ContentDate':
+        temporal_filter = (
+            f"ContentDate/Start gt {config['start_timestamp']} and "
+            f"ContentDate/End lt {end_timestamp} and "
+        )
+
+    elif config['date_to_filter_by'] == 'PublicationDate':
+        temporal_filter = (
+            f"PublicationDate gt {config['start_timestamp']} and "
+            f"PublicationDate lt {end_timestamp} and "
+        )
+    else:
+        logger.error(f'Invalid date_to_filter_by option in mission config file: {config["date_to_filter_by"]}')
+        sys.exit()
+
+    url = (
+        f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter="
+        f"{temporal_filter}"
+        f"Collection/Name eq '{config['collection']}'"
+        f"{spatial_filter}"
+        f"&$top={config['products_per_page']}"
+    )
+
+    return url
+
 def run_query(
         mission_config_path
     ):
 
     logger = init_logging()
-
-    # TODO: Need to do something if connection fails or query fails for other reason
-    # Can't move on to next time window as products will be lost.
-    # But also can't repeat endlessly
-    # Repeat a few times before moving on? Need to flag error.
 
     while True:
         # If time after cutoff, terminate the job.
@@ -66,92 +169,9 @@ def run_query(
             time.sleep(sleep_time)
             continue
 
-        if config['polygon']:
-            spatial_filter = f" and OData.CSC.Intersects(area=geography'SRID=4326;{config['polygon']}')"
-        else:
-            spatial_filter = ''
+        url = create_query_url(config, logger, end_timestamp)
 
-        if config['date_to_filter_by'] == 'ContentDate':
-            temporal_filter = (
-                f"ContentDate/Start gt {config['start_timestamp']} and "
-                f"ContentDate/End lt {end_timestamp} and "
-            )
-
-        elif config['date_to_filter_by'] == 'PublicationDate':
-            temporal_filter = (
-                f"PublicationDate gt {config['start_timestamp']} and "
-                f"PublicationDate lt {end_timestamp} and "
-            )
-        else:
-            logger.error(f'Invalid date_to_filter_by option in mission config file: {config["date_to_filter_by"]}')
-            sys.exit()
-
-        url = (
-            f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter="
-            f"{temporal_filter}"
-            f"Collection/Name eq '{config['collection']}'"
-            f"{spatial_filter}"
-            f"&$top={config['products_per_page']}"
-        )
-
-        logger.info(f"Querying: {url}")
-        all_results = []
-
-        while url:
-            response = requests.get(url).json()
-            all_results.extend(response.get('value', []))
-            url = response.get('@odata.nextLink')
-
-        if not all_results:
-            logger.info("No products found for the given filters.")
-        else:
-            df = pd.DataFrame.from_dict(all_results)
-
-            # Remove suffix(es) from filename
-            df['Product_Name'] = df['Name'].str.replace(r'(\.\w+){1,2}$', '', regex=True)
-
-            # This needs to only include sensing date(s) not ingestion date since products are updated later and we don't want to redownload.
-            df['Short_Name'] = df['Product_Name'].apply(extract_short_name_by_mission)
-
-            # Create a new column with full paths without extensions
-            df['SearchPath'] = df['Short_Name'].apply(lambda name: os.path.join(predict_base_path(name, config['output_dir'], config['product_types_csv']), name))
-
-            # Keep only rows where the file does *not* exist
-            pd.set_option('display.max_colwidth', None)
-
-            df['matches'] = df['SearchPath'].apply(glob.glob)
-
-            logger.info(f'Number of products found: {len(df)}')
-
-            df = df[df['SearchPath'].apply(no_matches)].reset_index(drop=True)
-
-            logger.info(f'Number of products not already on disk: {len(df)}')
-
-            with sqlite3.connect(config['product_download_queue_db']) as conn:
-                cur = conn.cursor()
-
-                # Create table with 'attempts' column if it doesn't exist
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS products (
-                        name TEXT PRIMARY KEY,
-                        id TEXT,
-                        attempts INTEGER DEFAULT 0
-                    )
-                """)
-
-                for _, row in df.iterrows():
-                    try:
-                        cur.execute(
-                            "INSERT INTO products (name, id, attempts) VALUES (?, ?, ?)",
-                            (row['Product_Name'], row['Id'], 0)
-                        )
-                    except sqlite3.IntegrityError:
-                        # Already exists, skip
-                        pass
-
-            # Deleting df and collecting garbage to avoid memory creep.
-            del df
-            gc.collect()
+        query_time_window(url, config, logger)
 
         # Update config for next iteration
         next_start_dt = start_dt + timedelta(minutes=int(config['time_step']))
