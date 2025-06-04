@@ -3,3 +3,4 @@ config/*
 data/*
 local_only/*
 tmp_storage_area/*
+final_storage_area/*

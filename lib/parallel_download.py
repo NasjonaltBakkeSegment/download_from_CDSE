@@ -4,18 +4,61 @@ import sys
 import requests
 import os
 import time
-from lib.utils import init_logging
+from lib.utils import init_logging, predict_base_path
 from lib.integrity_check import check_extracted_integrity
 import pandas as pd
 import re
+import shutil
 import time
 import threading
 import glob
 
 logger = init_logging()
 
-# TODO: Run on bigmem
-# TODO: 6 parallel downloads 128 Gb memory limit
+class Product:
+    def __init__(self, product_id, title, tmp_storage_area, output_dir, product_types_csv):
+        self.id = product_id
+        self.title = title
+        self.tmp_storage_area = tmp_storage_area
+        self.output_dir = output_dir
+        self.download_url = f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products({self.id})/$value"
+        self.product_types_csv = product_types_csv
+
+    def download(self, access_token):
+        logger.info(f"------Downloading product: {self.title}-------")
+        with requests.Session() as session:
+            session.headers.update({'Authorization': f'Bearer {access_token}'})
+            response = session.get(self.download_url, allow_redirects=False)
+
+            while response.status_code in (301, 302, 303, 307):
+                response = session.get(response.headers['Location'], allow_redirects=False)
+
+            final_response = session.get(response.url, verify=False, allow_redirects=True)
+
+        ext = ".nc" if self.title.startswith('S5') else ".zip"
+        self.tmp_absolute_filepath = os.path.join(self.tmp_storage_area, f"{self.title}{ext}")
+        with open(self.tmp_absolute_filepath, 'wb') as f:
+            f.write(final_response.content)
+
+    def was_downloaded(self):
+        return bool(glob.glob(self.tmp_absolute_filepath))
+
+    def move_to_output(self):
+
+        src = self.tmp_absolute_filepath
+
+        product_name = os.path.basename(src)
+        base_path = predict_base_path(product_name, self.output_dir, self.product_types_csv)
+        os.makedirs(base_path, exist_ok=True)
+
+        dst = os.path.join(base_path, os.path.basename(src))
+        try:
+            shutil.move(src, dst)
+            logger.info(f"Moved {self.title} to {self.output_dir}")
+        except Exception as e:
+            logger.error(f"Error moving {self.title}: {e}")
+            return False
+        return True
 
 def get_access_token(username, password):
 
@@ -45,70 +88,23 @@ def get_access_token(username, password):
         # Raise an exception with the error message if the request fails
         raise Exception(f"Error: {response.status_code} - {response.text}")
 
-def download_product(product_id, product_title, access_token, tmp_storage_area):
-    '''
-    Download product from Copernicus Data Space Ecosystem
-    '''
-    logger.info(f"------Downloading product: {product_title}-------")
-    #session = requests.Session()
-    with requests.Session() as session:
-        session.headers.update({'Authorization': f'Bearer {access_token}'})
-        url = f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products({product_id})/$value"
-        #url = f"https://download.dataspace.copernicus.eu/odata/v1/Products({product_id})/$value"
-        print(product_title, url)
-        response = session.get(url, allow_redirects=False)
-
-    while response.status_code in (301, 302, 303, 307):
-        #print(product_title, response.status_code)
-        url = response.headers['Location']
-        response = session.get(url, allow_redirects=False)
-
-    file = session.get(url, verify=False, allow_redirects=True)
-    output_filepath = os.path.join(tmp_storage_area, product_title)
-
-    if product_title.startswith('S5'):
-        with open(f"{output_filepath}.nc", 'wb') as p:
-            p.write(file.content)
-    else:
-        with open(f"{output_filepath}.zip", 'wb') as p:
-            p.write(file.content)
-
-def download_product_with_retries(product_id, title, output_directory, max_retries, token_lock, access_token):
+def download_product_with_retries(product, max_retries, token_lock, access_token, username, password):
     retries = 0
     while retries < max_retries:
         try:
             with token_lock:
                 current_token = access_token[0]
-            return download_product(product_id, title, current_token, output_directory)
+            return product.download(current_token)
         except Exception as e:
-            print(str(e))
             if 'token expired' in str(e).lower():
                 with token_lock:
-                    access_token[0] = get_access_token('dhr@met.no', '6tj&Rh=n9~GA)4>')
-                print(f"Token refreshed for product {product_id} ({title})")
+                    access_token[0] = get_access_token(username, password)
+                logger.warning(f"Token refreshed for product {product.id} ({product.title})")
             else:
                 retries += 1
-                print(f"Retry {retries}/{max_retries} for product {product_id} ({title}) due to error: {e}")
-                if retries < max_retries:
-                    time.sleep(1)  # Optional: wait a bit before retrying
-    raise Exception(f"Failed to download product {product_id} ({title}) after {max_retries} retries.")
-
-def check_download_status(list_of_products, tmp_storage_area):
-
-    successes = []
-    failures = []
-
-    for id, product_name in list_of_products:
-        pattern = os.path.join(tmp_storage_area, f"{product_name}.*")
-        matching_files = glob.glob(pattern)
-
-        if matching_files:
-            successes.append((id, product_name))
-        else:
-            failures.append((id, product_name))
-
-    return successes, failures
-
+                logger.warning(f"Retry {retries}/{max_retries} for product {product.id} ({product.title}): {e}")
+                time.sleep(1)
+    raise Exception(f"Failed to download product {product.id} ({product.title}) after {max_retries} retries.")
 
 def download_list_of_products(list_of_products, config):
 
@@ -118,36 +114,38 @@ def download_list_of_products(list_of_products, config):
     output_dir = config['output_dir']
     username = config['username']
     password = config['password']
+    product_types_csv = config['product_types_csv']
 
     try:
-        access_token = get_access_token(username, password)
-        # Do something with the access token here
+        access_token = [get_access_token(username, password)]
     except Exception as e:
         sys.exit(e)
 
-    # Process downloads
     token_lock = threading.Lock()
 
+    products = [Product(pid, title, tmp_storage_area, output_dir, product_types_csv) for pid, title in list_of_products]
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_parallel_downloads) as executor:
-        partial_download_product = functools.partial(download_product_with_retries, output_directory=tmp_storage_area, max_retries=max_retries, token_lock=token_lock, access_token=[access_token])
-        # Submit all the download tasks to the executor
-        future_to_product = {executor.submit(partial_download_product, pid, title): (pid, title) for pid, title in list_of_products}
+        futures = {
+            executor.submit(download_product_with_retries, product, max_retries, token_lock, access_token, username, password): product
+            for product in products
+        }
 
-        # Process the results as they complete
-        for future in concurrent.futures.as_completed(future_to_product):
-            product_id, title = future_to_product[future]
+        for future in concurrent.futures.as_completed(futures):
+            product = futures[future]
             try:
-                data = future.result()
-                print(f"Downloaded product {product_id} ({title}): {data}")
+                future.result()
+                logger.info(f"Downloaded product {product.id} ({product.title})")
             except Exception as exc:
-                print(f"Product {product_id} ({title}) generated an exception: {exc}")
+                logger.error(f"Product {product.id} ({product.title}) failed with exception: {exc}")
 
-    # Failures needs to scan downloaded products
-    successes, failures = check_download_status(list_of_products, tmp_storage_area)
-
-    # Move products to their storage location
-    #TODO: Write this function
-    #* Where should the products be stored if also syncing from GSS?
-    #move_products(successes, tmp_storage_area, output_dir)
+    successes = []
+    failures = []
+    for product in products:
+        if product.was_downloaded():
+            successes.append((product.id, product.title))
+            product.move_to_output()
+        else:
+            failures.append((product.id, product.title))
 
     return successes, failures

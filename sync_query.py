@@ -15,6 +15,10 @@ from lib.utils import load_and_combine_configs, init_logging, update_time_in_con
 # They need their own separate bash scripts (on qsub) to run. Stopping them could be challenging as this will require the job ID.
 
 # TODO: Don't synchronise COG or ETA for S3. Check if there are other products that shouldn't be synchronised.
+# TODO: Don't add to queue to download from CDSE if already in queue to download from GSS
+# TODO: Query and download from GSS too
+# TODO: Add 2 hour time delay to CDSE querying relative to GSS querying. Time delay in config. Can reduce delay if GSS down.
+# TODO: GSS query same mechanics - only add to download list if not already downloaded and not already in CDSE list.
 def no_matches(path_pattern):
     return not glob.glob(path_pattern + '*')
 

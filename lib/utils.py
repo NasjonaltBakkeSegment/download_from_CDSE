@@ -192,10 +192,10 @@ def predict_base_path(filename, root_path, product_metadata_csv):
     day = date[6:]
 
     if mission in ['S3', 'S5']:
-        url = f'{root_path}{platform}/{year}/{month}/{day}/{product_metadata["product_type"]}/'
+        filepath = f'{root_path}{platform}/{year}/{month}/{day}/{product_metadata["product_type"]}/'
     elif mission == 'S1':
-        url = f'{root_path}{platform}/{year}/{month}/{day}/{mode}/'
+        filepath = f'{root_path}{platform}/{year}/{month}/{day}/{mode}/'
     elif mission == 'S2':
-        url = f'{root_path}{platform}/{year}/{month}/{day}/'
+        filepath = f'{root_path}{platform}/{year}/{month}/{day}/'
 
-    return url
+    return filepath
