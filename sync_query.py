@@ -17,7 +17,6 @@ from lib.utils import load_and_combine_configs, init_logging, update_time_in_con
 # TODO: Don't synchronise COG or ETA for S3. Check if there are other products that shouldn't be synchronised.
 # TODO: Don't add to queue to download from CDSE if already in queue to download from GSS
 # TODO: Query and download from GSS too
-# TODO: Add 2 hour time delay to CDSE querying relative to GSS querying. Time delay in config. Can reduce delay if GSS down.
 # TODO: GSS query same mechanics - only add to download list if not already downloaded and not already in CDSE list.
 def no_matches(path_pattern):
     return not glob.glob(path_pattern + '*')
@@ -148,7 +147,7 @@ def create_query_url(config, logger, end_timestamp):
 def run_query(
         mission_config_path
     ):
-
+    # TODO logging multiple times because of logging in imported functions initialised as separate logger
     logger = init_logging()
 
     while True:
@@ -167,9 +166,18 @@ def run_query(
         end_dt = start_dt + timedelta(minutes=int(config['time_window']))
         end_timestamp = end_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        if end_dt >= now:
+        time_delay = int(config['time_delay'])
+        delay_threshold = now - timedelta(hours=time_delay)
+
+        if end_dt >= delay_threshold:
             sleep_time = int(config['time_window']) * 60 / 2
-            logger.info(f"End time is in the future. Sleeping for {sleep_time} seconds...")
+            if time_delay == 0:
+                logger.info(f"End time {end_timestamp} is in the future. Sleeping for {sleep_time} seconds...")
+            else:
+                logger.info(
+                    f"End time {end_timestamp} is within the delay window (after {time_delay} hours ago). "
+                    f"Sleeping for {sleep_time} seconds..."
+                )
             time.sleep(sleep_time)
             continue
 

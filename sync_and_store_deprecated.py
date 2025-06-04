@@ -4,16 +4,6 @@ Script that expands on the query and download functionality.
 Checks if queried products are in directory.
 If not, these are download and stored according to the following structure:
     platform/year/month/day/product_type
-
-TO DO:
-[x] func to unzip and store in correct file structure
-[x] func to remove zip
-[x] func to check difference between storage and queried products
-[x] add line to remove JSON wheen not needed anymore
-[] integrity check
-[x] save the metadata for each product, preferably one file per product, in whatever format is easiest?
-    JSON I guess but it doesn't really matter.
-    It should have the same filename as the product but different extension, and be stored in the metadatasubdirectory.
 """
 import argparse
 from lib.metadata_products import Metadata_products

@@ -1,13 +1,10 @@
 import concurrent.futures
-import functools
 import sys
 import requests
 import os
 import time
 from lib.utils import init_logging, predict_base_path
 from lib.integrity_check import check_extracted_integrity
-import pandas as pd
-import re
 import shutil
 import time
 import threading
