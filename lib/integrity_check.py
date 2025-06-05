@@ -9,7 +9,8 @@ import zipfile
 import os
 import datetime
 import time
-import sys
+import shutil
+from netCDF4 import Dataset
 
 logger = init_logging()
 
@@ -52,45 +53,76 @@ def get_zip_file_integrity_metrics(zip_filepath):
                 # metadata["timestamps"][file_name]= file_timestamp
     return metadata
 
-def check_extracted_integrity(zip_filepath, extracted_dir):
-    """Compares checksums of original ZIP files and extracted files."""
-    zip_metadata = get_zip_file_integrity_metrics(zip_filepath)
-    zip_checksums = zip_metadata["checksums"]
-    zip_filesizes = zip_metadata["filesizes"]
-    # zip_timestamps = zip_metadata["timestamps"]
+def extract_zip(zip_filepath, extract_to=None):
+    """Extracts the ZIP file to the specified directory, or derives it from the ZIP path."""
+    if extract_to is None:
+        extract_to = os.path.splitext(zip_filepath)[0]
+
+    if not os.path.exists(extract_to):
+        os.makedirs(extract_to)
+
+    with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
+        zip_ref.extractall(extract_to)
+
+    return extract_to
+
+def check_zip_integrity(zip_filepath):
+    """Checks the integrity of a ZIP file"""
+
+    extracted_dir = extract_zip(zip_filepath)
+
+    try:
+
+        zip_metadata = get_zip_file_integrity_metrics(zip_filepath)
+        zip_checksums = zip_metadata["checksums"]
+        zip_filesizes = zip_metadata["filesizes"]
+        # zip_timestamps = zip_metadata["timestamps"]
+
+        failed_checks = set()
+
+        for file_name in zip_checksums:
+            extracted_file_path = os.path.join(extracted_dir, file_name)
+
+            if not os.path.exists(extracted_file_path):
+                logger.info(f"------Missing extracted file: {extracted_file_path}------")
+                failed_checks.add(file_name)
+                continue
+
+            extracted_checksum = get_file_checksum(extracted_file_path)
+            extracted_size = os.path.getsize(extracted_file_path)
+            # extracted_timestamp = os.stat(extracted_file_path).st_mtime
+            # TODO: need to figure out what times to compare... currently extracted_timestamp changes to the time of extraction.
+            #       Does not stay same as time of last file change
 
 
-    failed_checks = set()
+            if zip_checksums[file_name] != extracted_checksum:
+                logger.info(f"------Checksum mismatch: {file_name}------")
+                failed_checks.add(file_name)
 
-    for file_name in zip_checksums:
-        extracted_file_path = os.path.join(extracted_dir, file_name)
+            if zip_filesizes[file_name] != extracted_size:
+                logger.info(f"------File size mismatch: {file_name}------")
+                failed_checks.add(file_name)
 
-        if not os.path.exists(extracted_file_path):
-            logger.info(f"------Missing extracted file: {extracted_file_path}------")
-            failed_checks.add(file_name)
-            continue
+            # if abs (zip_timestamps[file_name] - extracted_timestamp) > 2: # not tested yet
+            #     logger.info(f"------Timestamp mismatch: {file_name}------")
+            #     failed_checks.add(file_name)
 
-        extracted_checksum = get_file_checksum(extracted_file_path)
-        extracted_size = os.path.getsize(extracted_file_path)
-        # extracted_timestamp = os.stat(extracted_file_path).st_mtime
-        # TODO: need to figure out what times to compare... currently extracted_timestamp changes to the time of extraction.
-        #       Does not stay same as time of last file change
+        shutil.rmtree(extracted_dir)
 
+        if failed_checks:
+            logger.error("------Integrity check failed for files:", failed_checks, "------")
+            return False
+        logger.info("------Passed all integrity checks------")
+        return True
 
-        if zip_checksums[file_name] != extracted_checksum:
-            logger.info(f"------Checksum mismatch: {file_name}------")
-            failed_checks.add(file_name)
-
-        if zip_filesizes[file_name] != extracted_size:
-            logger.info(f"------File size mismatch: {file_name}------")
-            failed_checks.add(file_name)
-
-        # if abs (zip_timestamps[file_name] - extracted_timestamp) > 2: # not tested yet
-        #     logger.info(f"------Timestamp mismatch: {file_name}------")
-        #     failed_checks.add(file_name)
-
-    if failed_checks:
-        logger.error("------Integrity check failed for files:", failed_checks, "------")
+    except:
+        logger.error("------Integrity check failed------")
+        shutil.rmtree(extracted_dir)
         return False
-    logger.info("------Passed all integrity checks------")
-    return True
+
+def check_netcdf_integrity(filepath):
+    try:
+        with Dataset(filepath, 'r') as ds:
+            return True
+    except Exception as e:
+        return False

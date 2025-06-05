@@ -4,7 +4,7 @@ import requests
 import os
 import time
 from lib.utils import init_logging, predict_base_path
-from lib.integrity_check import check_extracted_integrity
+from lib.integrity_check import check_zip_integrity, check_netcdf_integrity
 import shutil
 import time
 import threading
@@ -34,6 +34,9 @@ class Product:
 
         ext = ".nc" if self.title.startswith('S5') else ".zip"
         self.tmp_absolute_filepath = os.path.join(self.tmp_storage_area, f"{self.title}{ext}")
+
+        os.makedirs(self.tmp_storage_area, exist_ok=True)
+
         with open(self.tmp_absolute_filepath, 'wb') as f:
             f.write(final_response.content)
 
@@ -56,6 +59,20 @@ class Product:
             logger.error(f"Error moving {self.title}: {e}")
             return False
         return True
+
+    def check_integrity(self):
+        # TODO: Need to do something different for S5
+        if self.title.startswith('S5'):
+            bool = check_netcdf_integrity(self.tmp_absolute_filepath)
+        else:
+            bool = check_zip_integrity(self.tmp_absolute_filepath)
+        return bool # True if checks passed, False if failed
+
+    def delete(self):
+        if os.path.exists(self.tmp_absolute_filepath):
+            os.remove(self.tmp_absolute_filepath)
+        else:
+            logger.error(f"File not found: {self.tmp_absolute_filepath}")
 
 def get_access_token(username, password):
 
@@ -140,8 +157,15 @@ def download_list_of_products(list_of_products, config):
     failures = []
     for product in products:
         if product.was_downloaded():
-            successes.append((product.id, product.title))
-            product.move_to_output()
+            integrity_ok = product.check_integrity()
+            if integrity_ok:
+                logger.info(f"Integrity checks passed: {product.title}")
+                successes.append((product.id, product.title))
+                product.move_to_output()
+            else:
+                logger.info(f"Integrity checks failed, deleting downloaded product: {product.title}")
+                product.delete()
+                failures.append((product.id, product.title))
         else:
             failures.append((product.id, product.title))
 
