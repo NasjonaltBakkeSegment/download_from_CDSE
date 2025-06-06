@@ -1,1 +1,1 @@
-python3 sync_query.py -c ./config/s3_config.yaml
+python3 sync_query_and_download.py -m s3

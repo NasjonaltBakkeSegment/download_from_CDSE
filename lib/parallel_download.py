@@ -61,7 +61,6 @@ class Product:
         return True
 
     def check_integrity(self):
-        # TODO: Need to do something different for S5
         if self.title.startswith('S5'):
             bool = check_netcdf_integrity(self.tmp_absolute_filepath)
         else:

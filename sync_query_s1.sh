@@ -1,1 +1,1 @@
-python3 sync_query.py -c ./config/s1_config.yaml
+python3 sync_query.py -m s1

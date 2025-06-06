@@ -1,11 +1,20 @@
 import yaml
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+import sys
+import time
 from shapely.wkt import loads
 from shapely.geometry import shape
 import logging
 import sys
 import os
 import pandas as pd
+
+def check_if_time_exceeded(start_time, max_runtime):
+    now = datetime.now(timezone.utc)
+    if now - start_time > max_runtime:
+        return True
+    else:
+        return False
 
 def date_from_string(date_string):
     '''

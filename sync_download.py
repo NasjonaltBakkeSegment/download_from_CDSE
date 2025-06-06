@@ -36,40 +36,81 @@ def update_number_of_attempts(failures, db_path):
         for failed_id, failed_name in failures:
             cur.execute("""
                 UPDATE products
-                SET attempts = attempts + 1
+                SET attempts = attempts + 1,
+                    progress = 'Pending'
                 WHERE id = ?
             """, (failed_id,))
         conn.commit()
     finally:
         conn.close()
 
-def remove_repeated_failures_from_queue(failures, db_path, limit_download_attempts):
+def remove_repeated_failures_from_queue(failures, queue_db_path, limit_download_attempts, failures_db_path):
     """
-    Removes products from the queue if they have failed 3 or more times.
+    Removes products from the queue if they have failed a given number of times or more,
+    and moves them to a separate database for tracking failed downloads.
 
     Parameters:
-        failures (list of str): List of product ids to check.
-        db_path (str): Path to the SQLite database.
+        failures (list of tuple): List of (product_id, product_name) tuples to check.
+        queue_db_path (str): Path to the main SQLite queue database.
+        limit_download_attempts (int): Number of allowed failures before removal.
+        failures_db_path (str): Path to the SQLite database where failed products are stored.
     """
     if not failures:
         return  # Nothing to do
 
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
+    # Connect to both databases
+    queue_conn = sqlite3.connect(queue_db_path)
+    failures_conn = sqlite3.connect(failures_db_path)
+
+    queue_cur = queue_conn.cursor()
+    failures_cur = failures_conn.cursor()
+
+    # Ensure the failures table exists
+    failures_cur.execute("""
+        CREATE TABLE IF NOT EXISTS failed_products (
+            name TEXT,
+            id TEXT PRIMARY KEY,
+            attempts INTEGER,
+            progress TEXT
+        )
+    """)
 
     try:
         for failed_id, failed_name in failures:
-            cur.execute("""
-                DELETE FROM products
+            # Select product that has reached or exceeded the attempt limit
+            queue_cur.execute("""
+                SELECT name, id, attempts, progress
+                FROM products
                 WHERE id = ? AND attempts >= ?
-            """, (failed_id,limit_download_attempts))
-        conn.commit()
+            """, (failed_id, limit_download_attempts))
+            row = queue_cur.fetchone()
+
+            if row:
+                name, id_, attempts, _ = row
+                progress = 'Failed'
+
+                # Insert into failed_products with updated progress
+                failures_cur.execute("""
+                    INSERT OR REPLACE INTO failed_products (name, id, attempts, progress)
+                    VALUES (?, ?, ?, ?)
+                """, (name, id_, attempts, progress))
+
+                # Remove from queue
+                queue_cur.execute("""
+                    DELETE FROM products
+                    WHERE id = ?
+                """, (id_,))
+
+        # Commit both databases
+        failures_conn.commit()
+        queue_conn.commit()
     finally:
-        conn.close()
+        queue_conn.close()
+        failures_conn.close()
 
 def get_products_to_download(db_path, limit):
     """
-    Retrieves the first `limit` product ids and names from the queue.
+    Retrieves the first 'limit' product ids and names from the queue.
 
     Parameters:
         db_path (str): Path to the SQLite database.
@@ -118,6 +159,8 @@ def remove_products_from_queue(products, db_path):
 def run_download(
         mission_config_path
     ):
+
+    # TODO: update progress column in database with status. In Progress when running, Pending if between attempts.
 
     logger = init_logging()
     config = load_and_combine_configs(mission_config_path, 'config/config.yaml')
